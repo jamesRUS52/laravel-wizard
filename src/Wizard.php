@@ -1,13 +1,13 @@
 <?php
 
-namespace Smajti1\Laravel;
+namespace jamesRUS52\Laravel;
 
-use Smajti1\Laravel\Exceptions\StepNotFoundException;
+use jamesRUS52\Laravel\Exceptions\StepNotFoundException;
 
 class Wizard
 {
 
-    const SESSION_NAME = 'smajti1.wizard';
+    const SESSION_NAME = 'james.rus52.wizard';
     protected $steps = [];
     protected $currentIndex = -1;
     protected $sessionKeyName = '';

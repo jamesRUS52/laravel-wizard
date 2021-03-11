@@ -1,6 +1,6 @@
 <?php
 
-namespace Smajti1\Laravel\Exceptions;
+namespace jamesRUS52\Laravel\Exceptions;
 
 class StepNotFoundException extends \Exception
 {

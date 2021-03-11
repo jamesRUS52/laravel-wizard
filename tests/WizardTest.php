@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Smajti1\Laravel\Exceptions\StepNotFoundException;
-use Smajti1\Laravel\Step;
-use Smajti1\Laravel\Wizard;
+use jamesRUS52\Laravel\Exceptions\StepNotFoundException;
+use jamesRUS52\Laravel\Step;
+use jamesRUS52\Laravel\Wizard;
 
 class WizardTest extends PHPUnit\Framework\TestCase
 {
