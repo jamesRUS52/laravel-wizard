@@ -1,15 +1,15 @@
 {
-  "name": "smajti1/laravel-wizard",
+  "name": "james.rus52/laravel-wizard",
   "description": "Wizard component for laravel.",
   "keywords": ["laravel", "wizard", "step", "steps"],
   "license": "MIT",
   "authors": [
     {
-      "name": "Hubert Dziubiński",
-      "email": "smajti1@gmail.com"
+      "name": "Anton V. Davydov",
+      "email": "james.rus52@gmail.com"
     }
   ],
-  "homepage": "https://github.com/smajti1/laravel-wizard",
+  "homepage": "https://github.com/jamesRUS52/laravel-wizard",
   "require": {
     "php": "^7.2 || ^8.0",
     "illuminate/http": "^6.0 || ^7.0 || ^8.0"
@@ -19,7 +19,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Smajti1\\Laravel\\": "src/"
+      "jamesRUS52\\Laravel\\": "src/"
     }
   }
 }

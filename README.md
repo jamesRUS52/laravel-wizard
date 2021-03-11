@@ -29,7 +29,7 @@ simple laravel step-by-step wizard
     ```php
     namespace App\Wizard\Steps;
     
-    class SetUserNameStep extends \Smajti1\Laravel\Step
+    class SetUserNameStep extends \jamesRUS52\Laravel\Step
     {
     
         public static $label = 'Set user name';
