@@ -9,7 +9,7 @@ simple laravel step-by-step wizard
 
 ## Install
 
-    $ composer require smajti1/laravel-wizard
+    $ composer require james.rus52/laravel-wizard
 
 ## Example/How
 
@@ -24,20 +24,6 @@ simple laravel step-by-step wizard
 
 2. create steps
 
-    add autoload field in composer.json file:
-
-        ...
-        "autoload": {
-           "psr-4": {
-                ...
-                "App\\Wizard\\Steps\\": "app/Steps"
-            },
-        ...
-    
-    regenerate autoloader
-    
-        $ composer dump-autoload
-    
     create step app/Steps/SetUserNameStep.php
     
     ```php
