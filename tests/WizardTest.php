@@ -238,4 +238,12 @@ class WizardTest extends PHPUnit\Framework\TestCase
         self::assertEquals(2, count($this->wizard->all()));
         self::assertEquals($this->wizardThirdStepKey, $this->wizard->all()[1]->key);
     }
+
+    public function testWizardCompletionPercent(): void
+    {
+        $this->wizard->__construct($this->steps);
+
+        self::assertEquals(34, $this->wizard->completionPercent());
+        self::assertEquals(0, $this->wizard->completionPercent(true));
+    }
 }

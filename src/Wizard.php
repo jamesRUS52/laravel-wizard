@@ -11,6 +11,7 @@ class Wizard
     protected $steps = [];
     protected $currentIndex = -1;
     protected $sessionKeyName = '';
+    protected $title = '';
 
     /**
      * @throws StepNotFoundException
@@ -239,5 +240,27 @@ class Wizard
     public function clearData()
     {
         $this->data([]);
+    }
+
+    /**
+     * @return string
+     */
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    /**
+     * @param string $title
+     */
+    public function setTitle(string $title): void
+    {
+        $this->title = $title;
+    }
+
+    public function completionPercent(bool $first_is_zero = false): float
+    {
+        $start_index = $first_is_zero ? 0 : 1;
+        return ceil(($this->currentIndex+$start_index) / $this->limit() * 100);
     }
 }
