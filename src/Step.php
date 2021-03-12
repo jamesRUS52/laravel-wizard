@@ -75,7 +75,7 @@ abstract class Step
             : $this->wizard->data()[$this::$slug] ?? [];
     }
 
-    public function getAuxData($name = null)
+    public function getAuxData(): array
     {
         return [];
     }
