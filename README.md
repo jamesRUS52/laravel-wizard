@@ -1,11 +1,13 @@
 # Laravel-wizard
 
+![Screenshot](screenshot.png)
+
 simple laravel step-by-step wizard
 
 | Version | Laravel Version | Php Version | 
 |---- |----|----|
 | 1.1 | 5.* | ^7.0 |
-| ^1.4 | 6.* &#124;&#124; 7.* &#124;&#124; 8.* | ^7.2 |
+| ^2.0 | 6.* &#124;&#124; 7.* &#124;&#124; 8.* | ^7.2 |
 
 ## Install
 
@@ -16,125 +18,165 @@ simple laravel step-by-step wizard
 1. add routes
     
     ```php
-   use App\Http\Controllers\UserWizardController;
    
-    Route::get('wizard/user/{step?}', [UserWizardController::class, 'wizard'])->name('wizard.user');
-    Route::post('wizard/user/{step}', [UserWizardController::class, 'wizardPost'])->name('wizard.user.post');
+    Route::get('/create/{step?}', [\App\Http\Controllers\CreationRequestsController::class, 'create'])
+            ->name('requests.create');
+        Route::post('/create/{step}', [\App\Http\Controllers\CreationRequestsController::class, 'store'])
+            ->name('requests.store');
     ```
 
 2. create steps
 
-    create step app/Steps/SetUserNameStep.php
+    create step class
     
     ```php
-    namespace App\Wizard\Steps;
-    
-    class SetUserNameStep extends \jamesRUS52\Laravel\Step
-    {
-    
-        public static $label = 'Set user name';
-        public static $slug = 'set-user-name';
-        public static $view = 'wizard.user.steps._set_user_name';
-    
-        public function process(\Illuminate\Http\Request $request)
-        {
-            // for example, create user
-            ...
-            // next if you want save one step progress to session use
-            $this->saveProgress($request);
-        }
-    
-        public function rules(\Illuminate\Http\Request $request = null): array
-        {
-            return [
-                'username' => 'required|min:4|max:255',
-            ];
-        }
-    }
+   
+   class InformationStepWizard extends \jamesRUS52\Laravel\Step
+   {
+      public function process(Request $request)
+      {
+         $this->saveProgress($request);
+      }
+
+       public function getAuxData(): array
+       {
+           return [
+               'owners' => 'Some extra data for view on this step',
+           ];
+       }
+
+       public function rules(Request $request = null): array
+       {
+           return [
+               'owner' => 'required',
+           ];
+       }
+   }
+
     ```
     
 3. create controller
 
     ```php
-    public $steps = [
-        'set-username-key' => SetUserNameStep::class,
-        SetPhoneStep::class,
-        ...
-    ];
-
-    protected $wizard;
-
-    public function __construct()
-    {
-        $this->wizard = new Wizard($this->steps, $sessionKeyName = 'user');
-    }
-
-    public function wizard($step = null)
-    {
-        try {
-            if (is_null($step)) {
-                $step = $this->wizard->firstOrLastProcessed();
-            } else {
-                $step = $this->wizard->getBySlug($step);
-            }
-        } catch (StepNotFoundException $e) {
-            abort(404);
-        }
-
-        return view('wizard.user.base', compact('step'));
-    }
-
-    public function wizardPost(Request $request, $step = null)
-    {
-        try {
-            $step = $this->wizard->getBySlug($step);
-        } catch (StepNotFoundException $e) {
-            abort(404);
-        }
-
-        $this->validate($request, $step->rules($request));
-        $step->process($request);
-
-        return redirect()->route('wizard.user', [$this->wizard->nextSlug()]);
-    }
+    class CreationRequestsController extends Controller
+   {
+   protected Wizard $wizard;
+   
+       public function __construct()
+       {
+           $this->wizard = new Wizard('Request wizard', [
+               new InformationStepWizard('information', 'Information', 'requests.create.information-step-wizard'),
+               new RequestTypeStepWizard('request-type', 'Request type', 'requests.create.request-type-step-wizard'),
+               new ResourcesStepWizard('resources', 'Choose resources', 'requests.create.resources-step-wizard'),
+               new ConfirmationStepWizard('confirmation', 'Confirmation', 'requests.create.confirmation-step-wizard'),
+           ],
+               'creation-request'
+           );
+       }
+   
+       public function create($step_slug = null)
+       {
+           try {
+               if (is_null($step_slug)) {
+                   $step = $this->wizard->firstOrLastProcessed();
+               } else {
+                   $step = $this->wizard->getBySlug($step_slug);
+               }
+           } catch (StepNotFoundException $e) {
+               abort(404);
+           }
+   
+           return view('requests.create.layout-wizard',
+               array_merge([
+                       'type' => 'creation',
+                   ],
+                   $step->getAuxData(),
+               )
+           );
+       }
+   
+       public function store(Request $request, $step_slug = null)
+       {
+           try {
+               $step = $this->wizard->getBySlug($step_slug);
+           } catch (StepNotFoundException $e) {
+               abort(404);
+           }
+   
+           $this->validate($request, $step->rules($request));
+           $step->process($request);
+   
+           if ($this->wizard->hasNext()) {
+               return redirect()->route('requests.create.', [$this->wizard->nextStep(false)->slug]);
+           }
+   
+           // Finaly Create Request
+           $full_wizard_data = $this->wizard->data();
+           $this->wizard->clearProgress();
+   
+           return redirect()->route('requests.index');
+       }
+   }
     ```
 
 4. add base view
 $wizard variable is now automatic sheared with view
+   Layout wizard template
+   
     ```php
-    <ol>
-        @foreach($wizard->all() as $key => $_step)
-            <li>
-                @if($step->index == $_step->index)
-                    <strong>{{ $_step::$label }}</strong>
-                @elseif($step->index > $_step->index)
-                    <a href="{{ route('wizard.user', [$_step::$slug]) }}">{{ $_step::$label }}</a>
+    <h4>{{$wizard->getTitle()}}</h4>
+    <div class="container container-fluid mt-4 mb-5">
+        <div class="row">
+        @foreach($wizard->getSteps() as $step)
+            <div class="col text-center">
+                @if($step->index == $wizard->currentStep()->index)
+                    <strong>{{ $step->label }}</strong>
+                @elseif($wizard->currentStep()->index > $loop->index)
+                    <a class="text-primary" href="{{ route('requests.create.'.$type, [$step->slug]) }}">{{ $step->label }}</a>
                 @else
-                    {{ $_step::$label }}
+                    {{ $step->label }}
                 @endif
-            </li>
+            </div>
         @endforeach
-    </ol>
-    <form action="{{ route('wizard.user.post', [$step::$slug]) }}" method="POST">
-        {{ csrf_field() }}
-     
-        @include($step::$view, compact('step', 'errors'))
-    
-        @if ($wizard->hasPrev())
-            <a href="{{ route('wizard.user', ['step' => $wizard->prevSlug()]) }}">Back</a>
-        @else
-            <a href="#">Back</a>
-        @endif
-    
-        <span>Step {{ $step->number }}/{{ $wizard->limit() }}</span>
-    
-        @if ($wizard->hasNext())
-            <button type="submit">Next</button>
-        @else
-            <button type="submit">Done</button>
-        @endif
+        </div>
+        <div class="progress m-2">
+            <div class="progress-bar" role="progressbar" style="width: {{$wizard->completionPercent()}}%;" aria-valuenow="{{$wizard->completionPercent()}}" aria-valuemin="0" aria-valuemax="100">{{$wizard->completionPercent()}}%</div>
+        </div>
+    </div>
+
+
+    <form action="{{ route('requests.store.'.$type, [$wizard->currentStep()->slug]) }}" method="POST" novalidate>
+        @csrf
+
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-9">
+                    @include($wizard->currentStep()->view, ['step' => $wizard->currentStep(), 'errors' => $errors])
+                </div>
+            </div>
+            <div class="row justify-content-center">
+                @if ($wizard->hasPrev())
+                <div class="col-2 text-right">
+                    <a class="btn btn-primary" href="{{ route('requests.create.'.$type, ['step' => $wizard->prevStep(false)->slug]) }}">Back</a>
+                </div>
+                @endif
+
+                <div class="col-2 text-center pt-2">
+                    Step {{ $wizard->currentStep()->getNumber() }} of {{ $wizard->stepsCount() }}
+                </div>
+
+                <div class="col-2 text-left">
+                    @if ($wizard->hasNext())
+                        <button class="btn btn-primary" type="submit">Next</button>
+                    @else
+                        <button class="btn btn-primary" type="submit">Finish</button>
+                    @endif
+                </div>
+            </div>
+        </div>
     </form>
     ```
+   
 ## License
 
 Laravel wizard is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT)

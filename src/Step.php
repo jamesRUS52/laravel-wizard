@@ -8,32 +8,33 @@ use phpDocumentor\Reflection\Types\Mixed_;
 abstract class Step
 {
 
-    /**
-     * @deprecated since 1.1.0 $label will be no more static
-     */
-    public static $label;
+    public int $index = -1;
+    protected Wizard $wizard;
+    public string $slug;
+    public string $label;
+    public string $view;
 
-    /**
-     * @deprecated from 1.1.0 $slug will be no more static
-     */
-    public static $slug;
-
-    /**
-     * @deprecated from 1.1.0 $view will be no more static
-     */
-    public static $view;
-    public $number;
-    public $key;
-    public $index;
-    protected $wizard;
-
-    public function __construct(int $number, $key, int $index, Wizard $wizard)
+    public function __construct(string $slug, string $label, string $view)
     {
-        $this->number = $number;
-        $this->key = $key;
+        $this->slug = $slug;
+        $this->label = $label;
+        $this->view = $view;
+    }
+
+    public function setIndex(int $index)
+    {
         $this->index = $index;
+    }
+
+    /**
+     * @param Wizard $wizard
+     */
+    public function setWizard(Wizard $wizard): void
+    {
         $this->wizard = $wizard;
     }
+
+
 
     abstract public function process(Request $request);
 
@@ -55,7 +56,7 @@ abstract class Step
     public function saveProgress(Request $request, array $additionalData = [])
     {
         $wizardData = $this->wizard->data();
-        $wizardData[$this::$slug] = $request->except('step', '_token');
+        $wizardData[$this->slug] = $request->except('step', '_token');
         $wizardData = array_merge($wizardData, $additionalData);
 
         $this->wizard->data($wizardData);
@@ -64,19 +65,28 @@ abstract class Step
     public function clearData()
     {
         $data = $this->wizard->data();
-        unset($data[$this::$slug]);
+        unset($data[$this->slug]);
         $this->wizard->data($data);
     }
 
     public function getData($field = null)
     {
+        $data = $this->wizard->getData();
+        if (!key_exists($this->slug, $data)) {
+            return empty($field) ? [] : null;
+        }
         return $field !== null
-            ? $this->wizard->data()[$this::$slug][$field]
-            : $this->wizard->data()[$this::$slug] ?? [];
+            ? key_exists($field, $data[$this->slug]) ? $data[$this->slug][$field] : null
+            : $data[$this->slug] ?? [];
     }
 
-    public function getAuxData(): array
+    public function getAuxData() : array
     {
         return [];
+    }
+
+    public function getNumber(): int
+    {
+        return $this->index + 1;
     }
 }

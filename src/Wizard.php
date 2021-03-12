@@ -2,33 +2,42 @@
 
 namespace jamesRUS52\Laravel;
 
+use InvalidArgumentException;
 use jamesRUS52\Laravel\Exceptions\StepNotFoundException;
 
 class Wizard
 {
 
     const SESSION_NAME = 'james.rus52.wizard';
+    /**
+     * @var Step[]
+     */
     protected $steps = [];
     protected $currentIndex = -1;
     protected $sessionKeyName = '';
     protected $title = '';
 
     /**
+     * @var Step[] $steps
      * @throws StepNotFoundException
      */
-    public function __construct(array $steps, string $sessionKeyName = '')
+    public function __construct(string $title, array $steps, string $sessionKeyName = '')
     {
         if (empty($steps)) {
             throw new StepNotFoundException();
         }
 
+        $this->title = $title;
         $this->currentIndex = $index = 0;
-        $naturalNumber = 1;
-        foreach ($steps as $key => $stepClassName) {
-            $newStep = $this->createStepClass($stepClassName, $naturalNumber, $key, $index);
-            $this->steps[$index] = $newStep;
+
+        foreach ($steps as $step) {
+            if (!$step instanceof Step) {
+                throw new InvalidArgumentException("Steps must be instance of ".Step::class);
+            }
+            $this->steps[] = $step;
+            $step->setIndex($index);
+            $step->setWizard($this);
             $index++;
-            $naturalNumber++;
         }
 
         $this->sessionKeyName = self::SESSION_NAME . '.' . $sessionKeyName;
@@ -37,16 +46,10 @@ class Wizard
         }
     }
 
-    protected function createStepClass($stepClassName, int $naturalNumber, $key, int $index): Step
-    {
-        $step = new $stepClassName($naturalNumber, $key, $index, $this);
-        return $step;
-    }
-
-    public function prevStep(): ?Step
+    public function prevStep(bool $move = true): ?Step
     {
         if ($this->hasPrev()) {
-            return $this->get($this->currentIndex - 1);
+            return $this->getStep($this->currentIndex - 1, $move);
         }
         return null;
     }
@@ -59,7 +62,7 @@ class Wizard
     /**
      * @throws StepNotFoundException
      */
-    protected function get(int $index, bool $moveCurrentIndex = true): Step
+    protected function getStep(int $index, bool $moveCurrentIndex = true): Step
     {
         if (!isset($this->steps[$index])) {
             throw new StepNotFoundException();
@@ -70,40 +73,22 @@ class Wizard
         return $this->steps[$index];
     }
 
-    public function prevSlug(): ?string
-    {
-        if ($this->hasPrev()) {
-            $prevSlug = $this->get($this->currentIndex - 1, false);
-            return $prevSlug::$slug;
-        }
-        return null;
-    }
-
-    public function nextStep(): ?Step
+    public function nextStep(bool $move = true): ?Step
     {
         if ($this->hasNext()) {
-            return $this->get($this->currentIndex + 1);
+            return $this->getStep($this->currentIndex + 1, $move);
         }
         return null;
     }
 
     public function hasNext(): bool
     {
-        return $this->currentIndex < $this->limit() && isset($this->steps[$this->currentIndex + 1]);
+        return $this->currentIndex < $this->stepsCount() && isset($this->steps[$this->currentIndex + 1]);
     }
 
-    public function limit(): int
+    public function stepsCount(): int
     {
         return count($this->steps);
-    }
-
-    public function nextSlug(): ?string
-    {
-        if ($this->hasNext()) {
-            $nextStep = $this->get($this->currentIndex + 1, false);
-            return $nextStep::$slug;
-        }
-        return null;
     }
 
     /**
@@ -111,19 +96,20 @@ class Wizard
      */
     public function getBySlug(string $slug = ''): Step
     {
-        $index = 0;
         foreach ($this->steps as $key => $step) {
-            if ($step::$slug == $slug) {
-                $this->currentIndex = $index;
+            if ($step->slug == $slug) {
+                $this->currentIndex = $step->index;
                 return $step;
             }
-            $index++;
         }
         throw new StepNotFoundException();
     }
 
     public function first(): Step
     {
+        if ($this->stepsCount() == 0 ) {
+            throw new StepNotFoundException();
+        }
         return $this->steps[0];
     }
 
@@ -133,14 +119,6 @@ class Wizard
         $lastProcessed += $moveSteps;
         $this->currentIndex = $lastProcessed;
         return $this->steps[$lastProcessed];
-    }
-
-    /**
-     * @deprecated
-     */
-    public function lastProcessed(): ?bool
-    {
-        return $this->lastProcessedIndex();
     }
 
     public function lastProcessedIndex(): ?int
@@ -166,72 +144,69 @@ class Wizard
         return session($this->sessionKeyName, $default);
     }
 
-    public function dataHas($key): bool
+    public function hasData(): bool
     {
         $data = $this->data();
-        return isset($data[$key]);
+        return isset($data) && !empty($data);
     }
 
-    public function dataGet($key)
+    public function getData()
     {
-        $data = $this->data();
-        return $data[$key];
+        return $this->data();
     }
 
-    public function dataStep(Step $step, $key): array
-    {
-        $data = $this->data();
-        $stepData = $data[$step::$slug][$key] ?? [];
-        return $stepData;
-    }
-
-    public function all(): array
+    /**
+     * @return Step[]
+     */
+    public function getSteps(): array
     {
         return $this->steps;
     }
 
-    public function replaceStep(int $index, string $new_step_class, string $key): Step
+    public function replaceStep(int $index, Step $new_step, bool $clear_step_data = true): Step
     {
         $step = $this->steps[$index];
-        $step->clearData();
+        if($clear_step_data) {
+            $step->clearData();
+        }
 
-        $this->steps[$index] = $this->createStepClass($new_step_class, $index + 1, $key, $index);
+        $this->steps[$index] = $new_step;
+        $new_step->setIndex($index);
 
-        return $this->steps[$index];
+        return $step;
     }
 
-    public function appendStep(string $step_class, string $key): Step
+    public function appendStep(Step $step): Step
     {
-        $new_index = count($this->steps);
-        $this->steps[] = $this->createStepClass($step_class, $new_index + 1, $key, $new_index);
+        $this->steps[] = $step;
+        $step->setIndex(count($this->steps) - 1);
 
-        return $this->steps[$new_index];
+        return $step;
     }
 
-    public function insertStep(int $index, string $step_class, string $key): Step
+    public function insertStep(int $index, step $step): Step
     {
         if ($index >= count($this->steps) || count($this->steps) === 0) {
-            return $this->appendStep($step_class, $key);
+            return $this->appendStep($step);
         }
 
         for ($i = count($this->steps); $i > $index; $i--) {
             $this->steps[$i] = $this->steps[$i - 1];
             $this->steps[$i]->index++;
-            $this->steps[$i]->number++;
         }
-        $this->steps[$index] = $this->createStepClass($step_class, $index + 1, $key, $index);
+        $this->steps[$index] = $step;
+        $step->setIndex($index);
 
-        return $this->steps[$index];
+        return $step;
     }
 
     public function destroyStep(int $index): void
     {
-        $step = $this->get($index);
+        $step = $this->getStep($index);
         $step->clearData();
 
         for ($i=$index+1; $i < count($this->steps); $i++) {
             $this->steps[$i]->index--;
-            $this->steps[$i]->number--;
         }
 
         unset($this->steps[$index]);
@@ -257,17 +232,24 @@ class Wizard
         return $this->title;
     }
 
-    /**
-     * @param string $title
-     */
-    public function setTitle(string $title): void
-    {
-        $this->title = $title;
-    }
-
     public function completionPercent(bool $first_is_zero = false): float
     {
         $start_index = $first_is_zero ? 0 : 1;
-        return ceil(($this->currentIndex+$start_index) / $this->limit() * 100);
+        return ceil(($this->currentIndex+$start_index) / $this->stepsCount() * 100);
+    }
+
+    public function currentStep(): Step
+    {
+        return $this->steps[$this->currentIndex];
+    }
+
+    public function last():Step
+    {
+        return $this->steps[$this->stepsCount()-1];
+    }
+
+    public function getByIndex(int $index): Step
+    {
+        return $this->steps[$index];
     }
 }
