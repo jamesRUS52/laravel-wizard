@@ -3,6 +3,7 @@
 namespace jamesRUS52\Laravel;
 
 use Illuminate\Http\Request;
+use phpDocumentor\Reflection\Types\Mixed_;
 
 abstract class Step
 {
@@ -41,6 +42,16 @@ abstract class Step
         return [];
     }
 
+    public function attributes(Request $request = null): array
+    {
+        return [];
+    }
+
+    public function messages(Request $request = null): array
+    {
+        return [];
+    }
+
     public function saveProgress(Request $request, array $additionalData = [])
     {
         $wizardData = $this->wizard->data();
@@ -55,5 +66,17 @@ abstract class Step
         $data = $this->wizard->data();
         unset($data[$this::$slug]);
         $this->wizard->data($data);
+    }
+
+    public function getData($field = null)
+    {
+        return $field !== null
+            ? $this->wizard->data()[$this::$slug][$field]
+            : $this->wizard->data()[$this::$slug] ?? [];
+    }
+
+    public function getAuxData($name = null)
+    {
+        return [];
     }
 }
