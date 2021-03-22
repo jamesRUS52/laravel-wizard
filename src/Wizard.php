@@ -172,14 +172,16 @@ class Wizard
 
         $this->steps[$index] = $new_step;
         $new_step->setIndex($index);
+        $new_step->setWizard($this);
 
-        return $step;
+        return $new_step;
     }
 
     public function appendStep(Step $step): Step
     {
         $this->steps[] = $step;
         $step->setIndex(count($this->steps) - 1);
+        $step->setWizard($this);
 
         return $step;
     }
@@ -196,6 +198,7 @@ class Wizard
         }
         $this->steps[$index] = $step;
         $step->setIndex($index);
+        $step->setWizard($this);
 
         return $step;
     }
